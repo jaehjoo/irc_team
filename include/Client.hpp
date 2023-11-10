@@ -38,14 +38,17 @@ private:
 	// client hostname
 	std::string host;
 
-	// client servername;
-	std::string serv_name;
-
 	// client nickname
 	std::string nick;
 
 	// client realname
 	std::string real;
+
+	// client username
+	std::string user;
+
+	// client servername
+	std::string serv;
 
 	// 현재 참여하고 있는 채널 목록
 	chllist join_list;
@@ -66,14 +69,19 @@ public:
 	void setPassConnect(int flag);
 	void setNick(std::string nick);
 	void setReal(std::string real);
-	void setServerName(std::string serv_name);
+	void setHost(std::string host);
+	void setUser(std::string user);
+	void setServ(std::string serv);
 	void setTime();
 	// getter
 	int getPassConnect() const;
 	int getClientFd() const;
 	bool getOp() const;
-	std::string getHost() const;
-	std::string getNick() const;
+	std::string const& getHost() const;
+	std::string const& getNick() const;
+	std::string const& getReal() const;
+	std::string const& getUser() const;
+	std::string const& getServ() const;
 };
 
 #endif

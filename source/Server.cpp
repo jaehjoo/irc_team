@@ -5,7 +5,7 @@
 #include <signal.h>
 #include <netdb.h>
 
-Server::Server(std::string port, std::string password) : op_name(""), op_password("") {
+Server::Server(std::string port, std::string password) : op_name(""), op_password(""), op(NULL) {
 	char* pointer;
 	long strict_port;
 	char hostname_buf[1024];
@@ -29,11 +29,16 @@ Server::Server(std::string port, std::string password) : op_name(""), op_passwor
 		else
 			this->host = inet_ntoa(*((struct in_addr*)host_struct->h_addr_list[0]));
 	}
-
 }
 
 Server::~Server() {
-
+	for (cltmap::iterator it = clients.begin(); it != clients.end(); it++)
+		delete it->second;
+	for (chlmap::iterator it = channels.begin(); it != channels.end(); it++)
+		delete it->second;
+	for (pollvec::iterator it = conn_fds.begin(); it < conn_fds.end(); it++)
+		close(it->fd);
+	delete handler;
 }
 
 void Server::init() {
@@ -50,7 +55,7 @@ void Server::init() {
 	struct pollfd tmp = {this->serv_sock, POLL_IN, 0};
 	this->conn_fds.push_back(tmp);
 
-	signal(SIGINT, SIG_IGN);
+	// signal(SIGINT, SIG_IGN);
 
 	int yes = 1;
 	setsockopt(serv_sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
@@ -61,13 +66,14 @@ void Server::init() {
 	fcntl(serv_sock, F_SETFL, O_NONBLOCK);
 	this->handler = new CommandHandle(*this);
 	this->running = true;
+	this->start_time = getCurTime();
 }
 
 void Server::loop() {
-	std::cout << "[Server] IRC start!" << std::endl;
+	std::cout << "[" << getStringTime(getCurTime()) << "] server start!" << std::endl;
 	while (running) {
 		poll(this->conn_fds.begin().base(), (nfds_t)this->conn_fds.size(), 3000);
-		for (pollvec::iterator it = this->conn_fds.begin(); it != this->conn_fds.end(); it++) {
+		for (pollvec::iterator it = this->conn_fds.begin(); it < this->conn_fds.end(); it++) {
 			if (it->revents & POLL_HUP) {
 				if (it->fd == serv_sock) {
 					running = false;
@@ -99,13 +105,10 @@ void Server::addClient(pollvec::iterator& it) {
 	pollvec::iterator::difference_type it_diff;
 
 	memset(&tmp, 0, sizeof(tmp));
-
 	it_diff = std::distance(this->conn_fds.begin(), it);
 	clnt_sz = sizeof(clnt_adr);
-	clnt_sock = accept(it->fd, (struct sockaddr*)&clnt_adr, &clnt_sz);
-	if (clnt_sock <= 0)
-		return ;
-	std::cout << clnt_sock << std::endl;
+	if ((clnt_sock = accept(it->fd, (struct sockaddr*)&clnt_adr, &clnt_sz)) == -1)
+		throw std::runtime_error("Error : accept!()");
 	tmp = (struct pollfd){clnt_sock, POLL_IN, 0};
 	this->conn_fds.push_back(tmp);
 	it = this->conn_fds.begin() + it_diff;
@@ -115,15 +118,15 @@ void Server::addClient(pollvec::iterator& it) {
 	fcntl(clnt_sock, F_SETFL, O_NONBLOCK);
 }
 
-void Server::delClient(pollvec::iterator it) {
+void Server::delClient(pollvec::iterator& it) {
 	if (this->op == this->clients[it->fd])
 		this->op = NULL;
 	delete this->clients[it->fd];
-	std::cout << "[Server] Delete Client : " << it->fd << std::endl;
 	this->read_buf.erase(it->fd);
 	this->send_buf.erase(it->fd);
 	close(it->fd);
-	this->conn_fds.erase(it);
+	it = this->conn_fds.erase(it);
+	this->clients.erase(it->fd);
 	// Channel에서 제거하는 부분 추가로 필요
 }
 
@@ -139,32 +142,29 @@ void Server::pingLoop() {
 
 }
 
-void Server::updateTime() {
-
-}
-
-bool Server::timeOut() {
-
-}
-
 void Server::read_message(pollvec::iterator it) {
 	char buf[BUF_SIZE + 1];
 	std::string tmp;
 	std::string message = "";
 	int byte = 0;
 	size_t size = 0;
+	bool first = true;
+	int stat;
 
 	memset(buf, 0, sizeof(buf));
-	byte = recv(it->fd, buf, BUF_SIZE, 0);
+	if ((byte = recv(it->fd, buf, BUF_SIZE, 0)) == -1)
+		return ;
+	if (byte == 0)
+		return delClient(it);
 	tmp = buf;
-	while ((size = tmp.find("\r\n"))) {
-		if (size == std::string::npos)
-			break ;
-		message = this->read_buf[it->fd];
+	while ((size = tmp.find("\r\n")) != std::string::npos) {
+		if (first) {
+			message = this->read_buf[it->fd];
+			read_buf[it->fd] = "";
+			first = false;
+		}
 		message += tmp.substr(0, size + 2);
-		std::cout << message;
 		tmp = tmp.substr(size + 2, tmp.size());
-		read_buf[it->fd] = "";
 		switch (this->handler->parsMessage(message)) {
 			// 각 case에 대한 CommandHandle 멤버 함수 연계
 			case IS_PASS:
@@ -176,11 +176,12 @@ void Server::read_message(pollvec::iterator it) {
 			case IS_USER:
 				handler->user(*this->clients[it->fd]);
 				break;
-			default:
-				;
+			case IS_NOT_ORDER:
+				break;
 		};
+		message = "";
 	}
-	this->read_buf[it->fd] += buf;
+	this->read_buf[it->fd] += tmp;
 }
 
 void Server::send_message(int fd) {
@@ -189,8 +190,10 @@ void Server::send_message(int fd) {
 		std::string mes = 0;
 
 		mes = send_buf[fd];
-		send_buf[fd] = "";
 		size = send(fd, &mes[0], mes.size(), 0);
+		if (size == -1)
+			return ;
+		send_buf[fd] = "";
 		if (size < mes.size()) {
 			send_buf[fd] = mes.substr(size, mes.size());
 		}
@@ -206,32 +209,38 @@ void Server::send_message(int fd, std::string message) {
 		mes = send_buf[fd];
 		send_buf[fd] = "";
 		size = send(fd, &mes[0], mes.size(), 0);
+		if (size == -1)
+			return ;
 		if (size < mes.size()) {
 			send_buf[fd] = mes.substr(size, mes.size());
 		}
 	}
 }
 
-int Server::getServerSocket() {
+int Server::getServerSocket() const {
 	return this->serv_sock;
 }
 
-std::string& Server::getHost() {
+std::string const& Server::getHost() const {
 	return this->host;
 }
 
-struct sockaddr_in& Server::getServAddr() {
+struct sockaddr_in const& Server::getServAddr() const {
 	return this->serv_addr;
 }
 
-int Server::getPort() {
+int Server::getPort() const {
 	return this->port;
 }
 
-std::string Server::getPassword() {
+std::string Server::getPassword() const {
 	return this->password;
 }
 
-Client& Server::getOp() {
+Client& Server::getOp() const {
 	return *this->op;
+}
+
+time_t const& Server::getServStartTime() const {
+	return this->start_time;
 }

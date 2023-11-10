@@ -5,6 +5,9 @@ SRC = main ./source/Server ./source/Client ./source/Channel ./source/CommandHand
 SRCC = $(addsuffix .cpp, $(SRC))
 OBJ = $(addsuffix .o, $(SRC))
 NAME = ircserv
+ifdef DEBUG
+	CXXFLAGS += -fsanitize=address -DDEBUG
+endif
 
 all: $(NAME)
 

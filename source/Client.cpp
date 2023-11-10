@@ -1,6 +1,6 @@
 #include "../include/Client.hpp"
 
-Client::Client(int fd, in_addr info) : pass_connect(0), pass_ping(false), op(false), fd(fd), info(info), host(inet_ntoa(info)), serv_name(""), nick(""), real("") {
+Client::Client(int fd, in_addr info) : pass_connect(0), pass_ping(false), op(false), fd(fd), info(info), host(inet_ntoa(info)), serv(""), nick(""), real("") {
 }
 
 Client::~Client() {
@@ -27,16 +27,20 @@ void Client::setReal(std::string real) {
 	this->real = real;
 }
 
-void Client::setServerName(std::string serv_name) {
-	this->serv_name = serv_name;
+void Client::setHost(std::string host) {
+	this->host = host;
+}
+
+void Client::setUser(std::string user) {
+	this->user = user;
+}
+
+void Client::setServ(std::string serv) {
+	this->serv = serv;
 }
 
 void Client::setTime() {
 	this->final_time = time(NULL);
-}
-
-std::string Client::getHost() const {
-	return this->host;
 }
 
 bool Client::getOp() const {
@@ -51,6 +55,22 @@ int Client::getClientFd() const {
 	return this->fd;
 }
 
-std::string Client::getNick() const {
+std::string const& Client::getHost() const {
+	return this->host;
+}
+
+std::string const& Client::getNick() const {
 	return this->nick;
+}
+
+std::string const& Client::getReal() const {
+	return this->real;
+}
+
+std::string const& Client::getUser() const {
+	return this->user;
+}
+
+std::string const& Client::getServ() const {
+	return this->serv;
 }

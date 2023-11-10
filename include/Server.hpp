@@ -52,9 +52,9 @@ private:
 	std::string op_name;
 	std::string op_password;
 	std::string host;
-	std::string command_message;
 	int port;
 	Client* op;
+	time_t start_time;
 
 	// 서버 종료가 필요할 때, 플래그를 올려줄 함수
 	bool running;
@@ -87,7 +87,7 @@ public:
 
 	// 클라이언트 생성 및 삭제
 	void addClient(pollvec::iterator& it);
-	void delClient(pollvec::iterator it);
+	void delClient(pollvec::iterator& it);
 
 	// 채널 생성 및 삭제
 	void addChannel(std::string ch_name);
@@ -95,8 +95,6 @@ public:
 
 	// 클라이언트와 연결 확인
 	void pingLoop();
-	void updateTime();
-	bool timeOut();
 
 	// I/O
 	void read_message(pollvec::iterator it);
@@ -104,12 +102,13 @@ public:
 	void send_message(int fd, std::string message);
 
 	// private 변수 내용물 받기
-	int getServerSocket();
-	std::string& getHost();
-	struct sockaddr_in& getServAddr();
-	int getPort();
-	std::string getPassword();
-	Client& getOp();
+	int getServerSocket() const;
+	std::string const& getHost() const;
+	struct sockaddr_in const& getServAddr() const;
+	int getPort() const;
+	std::string getPassword() const;
+	Client& getOp() const;
+	time_t const& getServStartTime() const;
 
 	// 명령어 실행을 위한 부속 함수들
 	// 에러 처리

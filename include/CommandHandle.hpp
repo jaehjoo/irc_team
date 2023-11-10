@@ -25,6 +25,7 @@ private:
 	CommandHandle(CommandHandle const& ref);
 	CommandHandle& operator=(CommandHandle const& ref);
 	Server& server;
+	void motd(Client& client);
 public:
 	CommandHandle(Server& server);
 	~CommandHandle();
@@ -53,7 +54,7 @@ public:
 	// 채널 전용 명령어들
 	void part(Client& client, std::map<std::string, Channel*>& chl_list);
 	void join(Client& client, std::map<std::string, Channel*>& chl_list);
-	void kick(Client& client, std::map<int, Client*>& clt_list, Channel* channel);
+	void kick(Client& client, std::map<int, Client*> clt_list, Channel* channel);
 	void topic(Client& client, Channel* channel);
 	void invite(Client& client, std::map<int, Client*>& clt_list, Channel* channel);
 };
