@@ -14,7 +14,7 @@ int ExceptionCode::getCode() const {
 
 std::string ExceptionCode::getCodeAsString() const {
     switch(this->code) {
-        case ExceptionCode::SYSTEM_CALL_FAILURE:
+        case SYSTEM_CALL_FAILURE:
             return "SYSTEM_CALL_FAILURE";
         default:
             return "UNKNOWN";

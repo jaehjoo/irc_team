@@ -8,16 +8,16 @@
  * 내부적으로 에러 코드와 에러 메시지의 일관성을 위해 작성되었습니다.
  * ExceptionThrower에게 전달되어 처리됩니다.
 */
+enum code{
+  SYSTEM_CALL_FAILURE = 0,  
+};
+
 class ExceptionCode {
     private:
         const int code;
         const std::string& message;
 
     public:
-        enum code{
-          SYSTEM_CALL_FAILURE = 0,  
-        };
-
         ExceptionCode(const int code, const std::string& message);
         ~ExceptionCode();
 
