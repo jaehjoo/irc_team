@@ -7,8 +7,9 @@
 #include "ExceptionThrower.hpp"
 #include "./util/Printer.hpp"
 
+#define SYSTEM_FAILURE -1
 #define THROW_IF_SYS_FAIL(condition, code) \
-        if(condition == -1) { ExceptionThrower::throwAsRuntimeException(code); }
+        if(condition == SYSTEM_FAILURE) { ExceptionThrower::throwAsRuntimeException(code); }
 
 int returnsSysFail() {
     return -1;
