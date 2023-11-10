@@ -39,6 +39,7 @@ namespace error {
 	std::string const ERR_NICKNAMEINUSE(std::string const& server_host, std::string const& nick);
 	std::string const ERR_ERRONEUSNICKNAME(std::string const& server_host, std::string const& nick);
 	std::string const ERR_NOTREGISTERED(std::string const& server_host, std::string const& reason);
+	std::string const ERR_UNKNOWNCOMMAND(std::string const& server_host, std::string const& command);
 }
 
 // 숫적 응답(numeric reply) 중, 정상 응답 담당

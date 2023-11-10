@@ -30,6 +30,10 @@ std::string const error::ERR_NOTREGISTERED(std::string const& server_host, std::
 	return ":" + server_host + " 451 :" + reason + suffix;
 }
 
+std::string const error::ERR_UNKNOWNCOMMAND(std::string const& server_host, std::string const& command) {
+	return ":" + server_host + " 421 " + command + " :Unknown Command" + suffix;
+}
+
 std::string const reply::RPL_WELCOME(std::string const& server_host, std::string const& nick, std::string const& user, std::string const& host) {
 	return ":" + server_host + " 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + user + "@" + host + suffix;
 }

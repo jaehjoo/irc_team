@@ -63,7 +63,8 @@ int CommandHandle::parsMessage(std::string& origin) {
 	}
 	tmp = "";
 	str >> tmp;
-	mes_form[mes_form.size() - 1] += " " + tmp;
+	if (tmp != "")
+		mes_form[mes_form.size() - 1] += " " + tmp;
 	return chk_command(this->mes_form[0]);
 }
 

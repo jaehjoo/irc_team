@@ -8,6 +8,9 @@ NAME = ircserv
 ifdef DEBUG
 	CXXFLAGS += -fsanitize=address -DDEBUG
 endif
+ifdef KQUEUE
+	SRC = main ./source/Server_kqueue ./source/Client ./source/Channel ./source/CommandHandle ./source/utils
+endif
 
 all: $(NAME)
 
@@ -22,7 +25,7 @@ clean:
 
 fclean:
 	make -s clean
-	$(RM) $(OBJ) $(NAME)
+	$(RM) $(NAME)
 
 re:
 	make -s fclean
