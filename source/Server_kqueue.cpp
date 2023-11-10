@@ -38,9 +38,8 @@ Server::~Server() {
 		delete it->second;
 	for (chlmap::iterator it = channels.begin(); it != channels.end(); it++)
 		delete it->second;
-	for ()
-	for (kquvec::iterator it = conn_fds.begin(); it < conn_fds.end(); it++)
-		close(it->ident);
+	for (fdmap::iterator it = read_buf.begin(); it != read_buf.end(); it++)
+		close(it->first);
 	delete handler;
 }
 
