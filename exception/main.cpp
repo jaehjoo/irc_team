@@ -15,9 +15,8 @@ int returnsSysFail() {
 }
 
 int main(void) {
-    std::string message = "THIS MESSAGE WILL BE PRINTED AS RED";
-    Printer::println(message, Printer::RED);
     Printer::println("프린트 할 일이 있다면 이렇게 사용하는 건 어떠신가요?");
+    Printer::println("이렇게 색깔을 추가해서 출력할 수도 있습니다", Printer::GREEN);
 
     THROW_IF_SYS_FAIL(returnsSysFail(), ExceptionCode(ExceptionCode::SYSTEM_CALL_FAILURE, "SOCKET CREATION FAILED"));
 }
