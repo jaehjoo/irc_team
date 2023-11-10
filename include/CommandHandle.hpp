@@ -1,34 +1,38 @@
 #ifndef _COMMANDHANDLE_HPP_
 # define _COMMANDHANDLE_HPP_
 
+/*
+	CommandHandle이 하는 일
+	1. Server에게 명령어를 전달 받고 명령어를 대리 실행
+*/
+
 # include <vector>
 # include <string>
 # include <sstream>
 # include <map>
-# include "utils.hpp"
+
 class Server;
 class Client;
 class Channel;
 
 # include "Client.hpp"
 # include "Server.hpp"
+# include "utils.hpp"
 
-/*
-	CommandHandle이 하는 일
-	1. Server에게 명령어를 전달 받고 명령어를 대리 실행
-*/
 class CommandHandle {
 	typedef std::vector<std::string> mesvec;
 private:
-	mesvec mes_form;
-	CommandHandle();
-	CommandHandle(CommandHandle const& ref);
-	CommandHandle& operator=(CommandHandle const& ref);
+	mesvec mesForm;
 	Server& server;
+
 	void motd(Client& client);
+
+	bool chkForbiddenMessage(std::string const& str, std::string const& forbidden_set);
+	int chkCommand(std::string& command);
 public:
 	CommandHandle(Server& server);
 	~CommandHandle();
+
 	// message를 구문 분석하고 map에 채워 넣음
 	// message 정규 표현식만 맞는 지 확인함
 	int parsMessage(std::string& origin);

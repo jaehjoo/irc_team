@@ -7,9 +7,9 @@ int main(int ac, char* av[]) {
 		return 1;
 	}
 	try {
-		Server irc_serv(av[1], av[2]);
-		irc_serv.init();
-		irc_serv.loop();
+		Server ircServ(av[1], av[2]);
+		ircServ.init();
+		ircServ.loop();
 	}
 	catch (std::exception& e) {
 		std::cerr << e.what() << std::endl;

@@ -8,8 +8,7 @@
 # define IS_LOGIN 7
 # define IS_NOT_ORDER 421
 
-
-
+// 전반적으로 적용하는 define 매크로
 # define BUF_SIZE 4096 // read, write 버퍼 상한
 # define CONNECT 1000 // 서버 접속자 수 상한
 # define PINGTIME 5000000 // 5 sec

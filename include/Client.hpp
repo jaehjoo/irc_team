@@ -18,16 +18,16 @@ class Client {
 	typedef std::map<std::string, bool> chllist;
 private:
 	// PASS, NICK, USER 전부를 거쳤는 지 검증. 비트마스킹.
-	int pass_connect;
+	int passConnect;
 
 	// ping 검사. ping을 보낼 때 false로 바꾸고 pong을 받으면 true가 된다
-	bool pass_ping;
+	bool passPing;
 
 	// 운영자 권한
 	bool op;
 
 	// final_ping_time
-	time_t final_time;
+	time_t finalTime;
 
 	// client socket
 	int fd;

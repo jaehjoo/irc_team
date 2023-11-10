@@ -1,20 +1,18 @@
+#include "../include/ServerKqueue.hpp"
 #include <fcntl.h>
 #include <stdexcept>
 #include <cstdlib>
 #include <signal.h>
 #include <netdb.h>
 
-#include "../include/Server.hpp"
-#include "../include/Printer.hpp"
-
 Server::Server(std::string port, std::string password) : opName(""), opPassword(""), op(NULL) {
 	char* pointer;
-	long strictingPort;
+	long strictPort;
 	char hostnameBuf[1024];
 	struct hostent* hostStruct;
 
-	strictingPort = std::strtol(port.c_str(), &pointer, 10);
-	if (*pointer != 0 || strictingPort < 1024 || strictingPort > 65535)
+	strictPort = std::strtol(port.c_str(), &pointer, 10);
+	if (*pointer != 0 || strictPort <= 1000 || strictPort > 65535)
 		throw std::runtime_error("Error : port is wrong");
 	for (size_t i = 0; i < password.size(); i++) {
 		if (password[i] == 0 || password[i] == '\r'
@@ -22,7 +20,7 @@ Server::Server(std::string port, std::string password) : opName(""), opPassword(
 			throw std::runtime_error("Error : password is wrong");
 	}
 	this->password = password;
-	this->port = static_cast<int>(strictingPort);
+	this->port = static_cast<int>(strictPort);
 	if (gethostname(hostnameBuf, sizeof(hostnameBuf)) == -1)
 		this->host = "127.0.0.1";
 	else {
@@ -31,6 +29,8 @@ Server::Server(std::string port, std::string password) : opName(""), opPassword(
 		else
 			this->host = inet_ntoa(*((struct in_addr*)hostStruct->h_addr_list[0]));
 	}
+	if ((this->kq = kqueue()) == -1)
+		throw std::runtime_error("kqueue error!");
 }
 
 Server::~Server() {
@@ -38,98 +38,108 @@ Server::~Server() {
 		delete it->second;
 	for (chlmap::iterator it = channelList.begin(); it != channelList.end(); it++)
 		delete it->second;
-	for (pollvec::iterator it = connectingFds.begin(); it < connectingFds.end(); it++)
-		close(it->fd);
+	for (fdmap::iterator it = savingBufForRead.begin(); it != savingBufForRead.end(); it++)
+		close(it->first);
 	delete handler;
 }
 
 void Server::init() {
+	int yes = 1;
+
 	this->servSock = socket(PF_INET, SOCK_STREAM, 0);
 
 	if (servSock == -1)
 		throw std::runtime_error("Error : server socket is wrong");
 
 	memset(&this->servAddr, 0, sizeof(this->servAddr));
-
 	this->servAddr.sin_family = AF_INET;
 	this->servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	this->servAddr.sin_port = htons(this->port);
-	struct pollfd tmp = {this->servSock, POLL_IN, 0};
-	this->connectingFds.push_back(tmp);
+
+	pushEvents(this->connectingFds, this->servSock, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
 
 	// signal(SIGINT, SIG_IGN);
 
-	int yes = 1;
 	setsockopt(servSock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
 	if (bind(servSock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == -1)
 		throw std::runtime_error("Error : bind");
 	if (listen(servSock, CONNECT) == -1)
 		throw std::runtime_error("Error : listen");
+	
 	fcntl(servSock, F_SETFL, O_NONBLOCK);
+
 	this->handler = new CommandHandle(*this);
 	this->running = true;
 	this->startTime = getCurTime();
 }
 
 void Server::loop() {
-	Printer::println("[" + getStringTime(getCurTime()) + "] server start!");
+	int new_events;
+	struct kevent eventList[15];
 
+	std::cout << "[" << getStringTime(getCurTime()) << "] server start!" << std::endl;
 	while (running) {
-		poll(this->connectingFds.begin().base(), (nfds_t)this->connectingFds.size(), 3000);
-		for (pollvec::iterator it = this->connectingFds.begin(); it < this->connectingFds.end(); it++) {
-			if (it->revents & POLL_HUP) {
-				if (it->fd == servSock) {
+		new_events = kevent(this->kq, &this->connectingFds[0], this->connectingFds.size(), eventList, 15, NULL);
+
+		this->connectingFds.clear();
+	
+		for (int i = 0; i < new_events; i++) {
+			if (eventList[i].flags & EV_ERROR) {
+				if (eventList[i].ident == this->servSock) {
 					running = false;
 					break;
 				}
 				else {
-					delClient(it);
+					delClient(eventList[i].ident);
 				}
-			} else if (it->revents & POLL_IN) {
-				if (it->fd == servSock) {
-					addClient(it);
+			} else if (eventList[i].flags & EVFILT_READ) {
+				if (eventList[i].ident == this->servSock) {
+					addClient(eventList[i].ident);
 				}
-				else {
-					readMessage(it);
+				else if (clientList.find(eventList[i].ident) != clientList.end()) {
+					readMessage(eventList[i].ident, eventList[i].data);
 				}
-			} else if (it->revents & POLL_OUT) {
-				sendMessage(it->fd);
+			} else if (eventList[i].ident & EVFILT_WRITE) {
+				if (clientList.find(eventList[i].ident) != clientList.end())
+					sendMessage(eventList[i].ident);
 			}
 		}
 		pingLoop();
 	}
 }
 
-void Server::addClient(pollvec::iterator& it) {
+void Server::pushEvents(kquvec& list, uintptr_t ident, int16_t filter, uint16_t flags, uint32_t fflags, intptr_t data, void* udata) {
+	struct kevent tmp;
+
+	EV_SET(&tmp, ident, filter, flags, fflags, data, udata);
+	list.push_back(tmp);
+}
+
+void Server::addClient(int fd) {
 	int clnt_sock;
 	struct sockaddr_in clnt_adr;
 	socklen_t clnt_sz;
-	pollfd tmp;
-	pollvec::iterator::difference_type it_diff;
 
-	memset(&tmp, 0, sizeof(tmp));
-	it_diff = std::distance(this->connectingFds.begin(), it);
 	clnt_sz = sizeof(clnt_adr);
-	if ((clnt_sock = accept(it->fd, (struct sockaddr*)&clnt_adr, &clnt_sz)) == -1)
+	if ((clnt_sock = accept(fd, (struct sockaddr*)&clnt_adr, &clnt_sz)) == -1)
 		throw std::runtime_error("Error : accept!()");
-	tmp = (struct pollfd){clnt_sock, POLL_IN, 0};
-	this->connectingFds.push_back(tmp);
-	it = this->connectingFds.begin() + it_diff;
+	pushEvents(this->connectingFds, clnt_sock, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
+	pushEvents(this->connectingFds, clnt_sock, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, NULL);
 	this->clientList.insert(std::make_pair(clnt_sock, new Client(clnt_sock, clnt_adr.sin_addr)));
 	this->savingBufForRead.insert(std::make_pair(clnt_sock, ""));
 	this->savingBufForSend.insert(std::make_pair(clnt_sock, ""));
 	fcntl(clnt_sock, F_SETFL, O_NONBLOCK);
 }
 
-void Server::delClient(pollvec::iterator& it) {
-	if (this->op == this->clientList[it->fd])
+void Server::delClient(int fd) {
+	if (this->op == this->clientList[fd])
 		this->op = NULL;
-	delete this->clientList[it->fd];
-	this->savingBufForRead.erase(it->fd);
-	this->savingBufForSend.erase(it->fd);
-	close(it->fd);
-	it = this->connectingFds.erase(it);
-	this->clientList.erase(it->fd);
+	delete this->clientList[fd];
+	this->savingBufForRead.erase(fd);
+	this->savingBufForSend.erase(fd);
+	close(fd);
+	this->clientList.erase(fd);
 	// Channel에서 제거하는 부분 추가로 필요
 }
 
@@ -145,8 +155,8 @@ void Server::pingLoop() {
 
 }
 
-void Server::readMessage(pollvec::iterator& it) {
-	char buf[BUF_SIZE + 1];
+void Server::readMessage(int fd, intptr_t data) {
+	char buf[data + 1];
 	std::string tmp;
 	std::string message = "";
 	int byte = 0;
@@ -155,15 +165,15 @@ void Server::readMessage(pollvec::iterator& it) {
 	int stat;
 
 	memset(buf, 0, sizeof(buf));
-	if ((byte = recv(it->fd, buf, BUF_SIZE, 0)) == -1)
+	if ((byte = recv(fd, buf, data, 0)) == -1)
 		return ;
 	if (byte == 0)
-		return delClient(it);
+		return delClient(fd);
 	tmp = buf;
 	while ((size = tmp.find("\r\n")) != std::string::npos) {
 		if (first) {
-			message = this->savingBufForRead[it->fd];
-			this->savingBufForRead[it->fd] = "";
+			message = this->savingBufForRead[fd];
+			savingBufForRead[fd] = "";
 			first = false;
 		}
 		message += tmp.substr(0, size + 2);
@@ -171,20 +181,20 @@ void Server::readMessage(pollvec::iterator& it) {
 		switch (this->handler->parsMessage(message)) {
 			// 각 case에 대한 CommandHandle 멤버 함수 연계
 			case IS_PASS:
-				handler->pass(*this->clientList[it->fd], this->password);
+				handler->pass(*this->clientList[fd], this->password);
 				break;
 			case IS_NICK:
-				handler->nick(*this->clientList[it->fd], this->clientList);
+				handler->nick(*this->clientList[fd], this->clientList);
 				break;
 			case IS_USER:
-				handler->user(*this->clientList[it->fd]);
+				handler->user(*this->clientList[fd]);
 				break;
 			case IS_NOT_ORDER:
 				break;
 		};
 		message = "";
 	}
-	this->savingBufForRead[it->fd] += tmp;
+	this->savingBufForRead[fd] += tmp;
 }
 
 void Server::sendMessage(int fd) {
@@ -193,8 +203,7 @@ void Server::sendMessage(int fd) {
 		std::string mes = 0;
 
 		mes = savingBufForSend[fd];
-		size = send(fd, &mes[0], mes.size(), 0);
-		if (size == -1)
+		if ((size = send(fd, &mes[0], mes.size(), 0)) == -1)
 			return ;
 		savingBufForSend[fd] = "";
 		if (size < mes.size()) {
@@ -211,8 +220,7 @@ void Server::sendMessage(int fd, std::string message) {
 
 		mes = savingBufForSend[fd];
 		savingBufForSend[fd] = "";
-		size = send(fd, &mes[0], mes.size(), 0);
-		if (size == -1)
+		if ((size = send(fd, &mes[0], mes.size(), 0)) == -1)
 			return ;
 		if (size < mes.size()) {
 			savingBufForSend[fd] = mes.substr(size, mes.size());

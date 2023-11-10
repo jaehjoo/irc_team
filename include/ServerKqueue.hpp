@@ -47,15 +47,15 @@ class Server {
 	typedef std::map<std::string, Channel*> chlmap;
 private:
 	// irc 서버로서 가져야 할 기본 정보들
-	int serv_sock;
-	struct sockaddr_in serv_addr;
+	int servSock;
+	struct sockaddr_in servAddr;
 	std::string password;
-	std::string op_name;
-	std::string op_password;
+	std::string opName;
+	std::string opPassword;
 	std::string host;
 	int port;
 	Client* op;
-	time_t start_time;
+	time_t startTime;
 
 	// 서버 종료가 필요할 때, 플래그를 올려줄 함수
 	bool running;
@@ -65,17 +65,15 @@ private:
 
 	// 소켓 이용 통신 및 명령어 집행 시 필요
 	int kq;
-	kquvec conn_fds;
-	cltmap clients;
-	chlmap channels;
+	kquvec connectingFds;
 
-	// 버퍼
-	fdmap read_buf;
-	fdmap send_buf;
+	// client, channel 명단
+	cltmap clientList;
+	chlmap channelList;
 
-	// 사용 안 함
-	Server();
-	Server& operator=(Server const& ref);
+	// 소켓 별로 사용하기 위한 버퍼
+	fdmap savingBufForRead;
+	fdmap savingBufForSend;
 public:
 	// 생성자와 파괴자
 	Server(std::string port, std::string password);
@@ -88,30 +86,30 @@ public:
 	void loop();
 
 	// event 넣기
-	void push_events(kquvec& list, uintptr_t ident, int16_t filter, uint16_t flags, uint32_t fflags, intptr_t data, void* udata);
+	void pushEvents(kquvec& list, uintptr_t ident, int16_t filter, uint16_t flags, uint32_t fflags, intptr_t data, void* udata);
 
 	// 클라이언트 생성 및 삭제
 	void addClient(int fd);
 	void delClient(int fd);
 
 	// 채널 생성 및 삭제
-	void addChannel(std::string ch_name);
-	void delChannel(std::string ch_name);
+	void addChannel(std::string& chName);
+	void delChannel(std::string& chName);
 
 	// 클라이언트와 연결 확인
 	void pingLoop();
 
 	// I/O
-	void read_message(int fd, intptr_t data);
-	void send_message(int fd);
-	void send_message(int fd, std::string message);
+	void readMessage(int fd, intptr_t data);
+	void sendMessage(int fd);
+	void sendMessage(int fd, std::string message);
 
 	// private 변수 내용물 받기
-	int getServerSocket() const;
+	int const& getServerSocket() const;
 	std::string const& getHost() const;
 	struct sockaddr_in const& getServAddr() const;
-	int getPort() const;
-	std::string getPassword() const;
+	int const& getPort() const;
+	std::string const& getPassword() const;
 	Client& getOp() const;
 	time_t const& getServStartTime() const;
 

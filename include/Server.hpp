@@ -6,13 +6,12 @@
 
 # include <iostream>
 # include <string>
-
+# include <vector>
+# include <map>
 # include <poll.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <arpa/inet.h>
-# include <vector>
-# include <map>
 # include <unistd.h>
 
 class Client;
@@ -46,15 +45,15 @@ class Server {
 	typedef std::map<std::string, Channel*> chlmap;
 private:
 	// irc 서버로서 가져야 할 기본 정보들
-	int serv_sock;
-	struct sockaddr_in serv_addr;
+	int servSock;
+	struct sockaddr_in servAddr;
 	std::string password;
-	std::string op_name;
-	std::string op_password;
+	std::string opName;
+	std::string opPassword;
 	std::string host;
 	int port;
 	Client* op;
-	time_t start_time;
+	time_t startTime;
 
 	// 서버 종료가 필요할 때, 플래그를 올려줄 함수
 	bool running;
@@ -63,13 +62,13 @@ private:
 	CommandHandle* handler;
 
 	// 소켓 이용 통신 및 명령어 집행 시 필요
-	pollvec conn_fds;
-	cltmap clients;
-	chlmap channels;
+	pollvec connectingFds;
+	cltmap clientList;
+	chlmap channelList;
 
 	// 버퍼
-	fdmap read_buf;
-	fdmap send_buf;
+	fdmap savingBufForRead;
+	fdmap savingBufForSend;
 
 	// 사용 안 함
 	Server();
@@ -90,23 +89,23 @@ public:
 	void delClient(pollvec::iterator& it);
 
 	// 채널 생성 및 삭제
-	void addChannel(std::string ch_name);
-	void delChannel(std::string ch_name);
+	void addChannel(std::string& chName);
+	void delChannel(std::string& chName);
 
 	// 클라이언트와 연결 확인
 	void pingLoop();
 
 	// I/O
-	void read_message(pollvec::iterator it);
-	void send_message(int fd);
-	void send_message(int fd, std::string message);
+	void readMessage(pollvec::iterator& it);
+	void sendMessage(int fd);
+	void sendMessage(int fd, std::string message);
 
 	// private 변수 내용물 받기
-	int getServerSocket() const;
+	int const& getServerSocket() const;
 	std::string const& getHost() const;
 	struct sockaddr_in const& getServAddr() const;
-	int getPort() const;
-	std::string getPassword() const;
+	int const& getPort() const;
+	std::string const& getPassword() const;
 	Client& getOp() const;
 	time_t const& getServStartTime() const;
 

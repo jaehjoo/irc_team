@@ -1,6 +1,6 @@
 #include "../include/Client.hpp"
 
-Client::Client(int fd, in_addr info) : pass_connect(0), pass_ping(false), op(false), fd(fd), info(info), host(inet_ntoa(info)), serv(""), nick(""), real("") {
+Client::Client(int fd, in_addr info) : passConnect(0), passPing(false), op(false), fd(fd), info(info), host(inet_ntoa(info)), serv(""), nick(""), real("") {
 }
 
 Client::~Client() {
@@ -12,11 +12,11 @@ void Client::joinChannel(std::string, char prefix) {
 }
 
 void Client::setPassPing(bool flag) {
-	this->pass_ping = flag;
+	this->passPing = flag;
 }
 
 void Client::setPassConnect(int flag) {
-	this->pass_connect |= flag;
+	this->passConnect |= flag;
 }
 
 void Client::setNick(std::string nick) {
@@ -40,7 +40,7 @@ void Client::setServ(std::string serv) {
 }
 
 void Client::setTime() {
-	this->final_time = time(NULL);
+	this->finalTime = time(NULL);
 }
 
 bool Client::getOp() const {
@@ -48,7 +48,7 @@ bool Client::getOp() const {
 }
 
 int Client::getPassConnect() const {
-	return this->pass_connect;
+	return this->passConnect;
 }
 
 int Client::getClientFd() const {

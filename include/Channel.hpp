@@ -1,11 +1,6 @@
 #ifndef _CHANNEL_HPP_
 # define _CHANNEL_HPP_
 
-# include <map>
-# include <string>
-
-# include "utils.hpp"
-
 /*
 	Channel이 하는 일
 	1. 단일 채널에 필요한 변수 보유
@@ -17,6 +12,11 @@
 	3. 채널 내 클라이언트 제거, 추가 함수
 */
 
+# include <map>
+# include <string>
+
+# include "utils.hpp"
+
 class Client;
 
 class Channel {
@@ -25,9 +25,9 @@ private:
 	// 채널 운영자
 	Client* chanop;
 	// 채널 가입자 명단
-	cltmap user_list;
+	cltmap userList;
 	// 가입자수 상한
-	int user_limit;
+	int userLimit;
 	// 채널 기호
 	char prefix;
 	// 채널 모드(비트 마스킹)
