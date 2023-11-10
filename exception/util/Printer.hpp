@@ -7,21 +7,22 @@
 
 #include <iostream>
 
+enum Color {
+    RESET = 0,
+    RED = 31,
+    GREEN = 32,
+    YELLOW = 33,
+    BLUE = 34,
+    MAGENTA = 35,
+    CYAN = 36,
+    WHITE = 37
+};
+
 class Printer {
     private:
         Printer();
 
     public:
-        enum Color {
-            RESET = 0,
-            RED = 31,
-            GREEN = 32,
-            YELLOW = 33,
-            BLUE = 34,
-            MAGENTA = 35,
-            CYAN = 36,
-            WHITE = 37
-        };
 
         static void println(std::string message);
         static void println(std::string message, Color color);
