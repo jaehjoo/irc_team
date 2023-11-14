@@ -161,8 +161,7 @@ void Server::readMessage(int fd, intptr_t data) {
 	std::string message = "";
 	int byte = 0;
 	size_t size = 0;
-	bool first = true;
-	int stat;
+	int cnt = 0;
 
 	memset(buf, 0, sizeof(buf));
 	if ((byte = recv(fd, buf, data, 0)) == -1)
@@ -170,14 +169,18 @@ void Server::readMessage(int fd, intptr_t data) {
 	if (byte == 0)
 		return delClient(fd);
 	tmp = buf;
-	while ((size = tmp.find("\r\n")) != std::string::npos) {
-		if (first) {
-			message = this->savingBufForRead[fd];
-			savingBufForRead[fd] = "";
-			first = false;
+	message = this->savingBufForRead[fd];
+	this->savingBufForRead[fd] = "";
+	while (1) {
+		cnt = 2;
+		if ((size = tmp.find("\r\n")) == std::string::npos) {
+			cnt = 1;
+			if ((size = tmp.find("\r")) == std::string::npos)
+				if ((size = tmp.find("\n")) == std::string::npos)
+					break;
 		}
-		message += tmp.substr(0, size + 2);
-		tmp = tmp.substr(size + 2, tmp.size());
+		message += tmp.substr(0, size + cnt);
+		tmp = tmp.substr(size + cnt, tmp.size());
 		switch (this->handler->parsMessage(message)) {
 			// 각 case에 대한 CommandHandle 멤버 함수 연계
 			case IS_PASS:

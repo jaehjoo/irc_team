@@ -36,7 +36,8 @@ int CommandHandle::parsMessage(std::string& origin) {
 
 	this->mesForm.clear();
 
-	if (origin[origin.size() - 2] != '\r' || origin[origin.size() - 1] != '\n')
+	if (origin[origin.size() - 1] == '\r'
+		|| (origin[origin.size() - 1] == '\n' && origin[origin.size() - 2] != '\r'))
 		return IS_NOT_ORDER;
 
 	str.str(origin.substr(0, origin.size() - 2));
